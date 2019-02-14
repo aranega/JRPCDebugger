@@ -11,6 +11,13 @@ Class {
 	#category : #JRPCDebugger
 }
 
+{ #category : #adding }
+JRPCDebugger >> addEchoHandler [
+	"For debugging purpose."
+	jrpcServer
+		addHandlerNamed: 'echo' block: [ :o | o asString ]
+]
+
 { #category : #accessing }
 JRPCDebugger >> debugContext [
 	^ debugContext
@@ -32,7 +39,7 @@ JRPCDebugger >> debugSession: anObject [
 ]
 
 { #category : #actions }
-JRPCDebugger >> disp [
+JRPCDebugger >> display [
 	| method pc start stop |
 	method := session context method.
 	pc := session context pc.
@@ -63,9 +70,36 @@ JRPCDebugger >> initialize [
 	jrpcServer := JRPCServer http
 						port: 4000;
 						addHandlerNamed: 'initialize' block: [ self init ];
-						addHandlerNamed: 'display' block: [ self disp ];
+						addHandlerNamed: 'display' block: [ self display ];
 						addHandlerNamed: 'nextStatement' block: [ self nextStatement ];
+						addHandlerNamed: 'next' block: [ self next ];
+						addHandlerNamed: 'list' block: [ self listProcesses ];
 						yourself
+]
+
+{ #category : #actions }
+JRPCDebugger >> listProcesses [
+	| processList |
+	self flag: 'To be moved to the JRPC debuggers manager'.
+	
+	Smalltalk garbageCollectMost. "lose defunct processes"
+	
+	processList := Process allSubInstances
+							reject: [:each | each isTerminated].
+	processList := processList sort: [:a :b | a priority >= b priority].
+	^ { 'processes' -> (processList collect: [ :proc |
+		{ 'string' -> proc printString. 'hash' -> proc hash } asDictionary ]) asArray } asDictionary
+]
+
+{ #category : #actions }
+JRPCDebugger >> next [
+	| method pc start stop |
+	session stepOver.
+	method := session context method.
+	pc := session context pc.
+	start := (method ast sourceNodeExecutedForPC: pc) start.
+	stop := (method ast sourceNodeExecutedForPC: pc) stop.
+	^ JRPCDLineInfo start: start end: stop source: method sourceCode
 ]
 
 { #category : #actions }

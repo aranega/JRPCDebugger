@@ -22,7 +22,7 @@ JRPCDLineInfo class >> start: start end: end source: source [
 JRPCDLineInfo >> asJRPCJSON [
 	^ { 
 		'start' -> self start.
-		'end' -> self end.
+		'stop' -> self end.
 		'source' -> self source
 	} asDictionary
 ]
