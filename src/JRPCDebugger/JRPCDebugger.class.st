@@ -18,6 +18,20 @@ JRPCDebugger >> addEchoHandler [
 		addHandlerNamed: 'echo' block: [ :o | o asString ]
 ]
 
+{ #category : #actions }
+JRPCDebugger >> debug: processHash [
+	| method pc start stop |
+	process := self processWithHash: processHash.
+	session := process
+		newDebugSessionNamed: 'test session'
+		startedAt: process suspendedContext.
+	method := session context method.
+	pc := session context pc.
+	start := (method ast sourceNodeExecutedForPC: pc) start.
+	stop := (method ast sourceNodeExecutedForPC: pc) stop.
+	^ JRPCDLineInfo start: start end: stop source: method sourceCode
+]
+
 { #category : #accessing }
 JRPCDebugger >> debugContext [
 	^ debugContext
@@ -74,6 +88,7 @@ JRPCDebugger >> initialize [
 						addHandlerNamed: 'nextStatement' block: [ self nextStatement ];
 						addHandlerNamed: 'next' block: [ self next ];
 						addHandlerNamed: 'list' block: [ self listProcesses ];
+						addHandlerNamed: 'debug' block: [ :processHash | self debug: processHash ];
 						yourself
 ]
 
@@ -81,13 +96,8 @@ JRPCDebugger >> initialize [
 JRPCDebugger >> listProcesses [
 	| processList |
 	self flag: 'To be moved to the JRPC debuggers manager'.
-	
-	Smalltalk garbageCollectMost. "lose defunct processes"
-	
-	processList := Process allSubInstances
-							reject: [:each | each isTerminated].
-	processList := processList sort: [:a :b | a priority >= b priority].
-	^ { 'processes' -> (processList collect: [ :proc |
+
+	^ { 'processes' -> (self processes collect: [ :proc |
 		{ 'string' -> proc printString. 'hash' -> proc hash } asDictionary ]) asArray } asDictionary
 ]
 
@@ -118,6 +128,18 @@ JRPCDebugger >> nextStatement [
 	start := (method ast sourceNodeExecutedForPC: pc) start.
 	stop := (method ast sourceNodeExecutedForPC: pc) stop.
 	^ JRPCDLineInfo start: start end: stop source: method sourceCode
+]
+
+{ #category : #private }
+JRPCDebugger >> processWithHash: anInteger [
+	^ self processes detect: [ :p | p hash = anInteger ]
+]
+
+{ #category : #private }
+JRPCDebugger >> processes [
+	Smalltalk garbageCollectMost. "lose defunct processes"
+	
+	^ Process allSubInstances reject: [:each | each isTerminated]
 ]
 
 { #category : #accessing }
