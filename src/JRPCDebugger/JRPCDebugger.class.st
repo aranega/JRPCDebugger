@@ -80,6 +80,11 @@ JRPCDebugger >> display [
 ]
 
 { #category : #actions }
+JRPCDebugger >> evaluate: aString [
+	^ JRPCDEvalInfo result: (Smalltalk compiler source: aString; context: session context; receiver: session context receiver; evaluate).
+]
+
+{ #category : #actions }
 JRPCDebugger >> init [
 	| context |
 	context := [ | x |
@@ -100,8 +105,11 @@ JRPCDebugger >> initialize [
 						port: 4000;
 						addHandlerNamed: 'initialize' block: [ self init ];
 						addHandlerNamed: 'display' block: [ self display ];
+						addHandlerNamed: 'resume' block: [ self resume ];
+						addHandlerNamed: 'evaluate' block: [ :expression | self evaluate: expression ];
 						addHandlerNamed: 'nextStatement' block: [ self nextStatement ];
 						addHandlerNamed: 'next' block: [ self next ];
+						addHandlerNamed: 'step' block: [ self step ];
 						addHandlerNamed: 'list' block: [ self listProcesses ];
 						addHandlerNamed: 'debug' block: [ :processHash | self debug: processHash ];
 						yourself
@@ -154,9 +162,26 @@ JRPCDebugger >> processes [
 	^ Process allSubInstances reject: [:each | each isTerminated]
 ]
 
+{ #category : #actions }
+JRPCDebugger >> resume [
+	session resume.
+	^ 'Execution terminated'
+]
+
+{ #category : #actions }
+JRPCDebugger >> session [
+	^ session
+]
+
 { #category : #accessing }
 JRPCDebugger >> start [
 	jrpcServer start
+]
+
+{ #category : #actions }
+JRPCDebugger >> step [
+	session stepInto.
+	^ self lineInfo 
 ]
 
 { #category : #accessing }
