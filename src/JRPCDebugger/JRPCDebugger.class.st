@@ -19,6 +19,23 @@ JRPCDebugger >> addEchoHandler [
 ]
 
 { #category : #actions }
+JRPCDebugger >> currentMethodNode [
+	^ session context method ast
+]
+
+{ #category : #actions }
+JRPCDebugger >> currentMethodSource [
+	^ self currentMethodNode source
+]
+
+{ #category : #actions }
+JRPCDebugger >> currentNode [
+	| pc |
+	pc := session context pc.
+	^ self currentMethodNode sourceNodeExecutedForPC: pc.
+]
+
+{ #category : #actions }
 JRPCDebugger >> debug: processHash [
 	| method pc start stop |
 	process := self processWithHash: processHash.
@@ -64,18 +81,16 @@ JRPCDebugger >> display [
 
 { #category : #actions }
 JRPCDebugger >> init [
-	| method pc start stop |
-	process := [ | x |
+	| context |
+	context := [ | x |
 	x := 5 + 1.
-	'lalala' logCr ] newProcess.
-	session := process
-		newDebugSessionNamed: 'test session'
-		startedAt: process suspendedContext.
-	method := session context method.
-	pc := session context pc.
-	start := (method ast sourceNodeExecutedForPC: pc) start.
-	stop := (method ast sourceNodeExecutedForPC: pc) stop.
-	^ JRPCDLineInfo start: start end: stop source: method sourceCode
+	'lalala' logCr ] asContext.
+	process := Process 
+	    forContext: context 
+	    priority: Processor userInterruptPriority.
+	session := process newDebugSessionNamed: 'test session' startedAt: context.
+	
+	^ self lineInfo 
 ]
 
 { #category : #initialization }
@@ -93,6 +108,16 @@ JRPCDebugger >> initialize [
 ]
 
 { #category : #actions }
+JRPCDebugger >> lineInfo [
+	| range |
+	range := session pcRangeForContext: session context.
+	^ JRPCDLineInfo
+		start: range first
+		end: range last
+		source: self currentMethodSource
+]
+
+{ #category : #actions }
 JRPCDebugger >> listProcesses [
 	| processList |
 	self flag: 'To be moved to the JRPC debuggers manager'.
@@ -103,31 +128,18 @@ JRPCDebugger >> listProcesses [
 
 { #category : #actions }
 JRPCDebugger >> next [
-	| method pc start stop |
 	session stepOver.
-	method := session context method.
-	pc := session context pc.
-	start := (method ast sourceNodeExecutedForPC: pc) start.
-	stop := (method ast sourceNodeExecutedForPC: pc) stop.
-	^ JRPCDLineInfo start: start end: stop source: method sourceCode
+	^ self lineInfo 
 ]
 
 { #category : #actions }
 JRPCDebugger >> nextStatement [
-	| method pc node iteration start stop |
-	method := session context method.
-	pc := session context pc.
-	node := method ast sourceNodeExecutedForPC: pc.
-	iteration := 0.
+	| node |
+	node := self currentNode.
 	[ node isKindOf: RBSequenceNode ]
-		whileFalse: [ iteration := iteration + 1.
+		whileFalse: [ session stepOver.
 			node := node parent ].
-	1 to: iteration do: [ :i | session stepOver ].
-	method := session context method.
-	pc := session context pc.
-	start := (method ast sourceNodeExecutedForPC: pc) start.
-	stop := (method ast sourceNodeExecutedForPC: pc) stop.
-	^ JRPCDLineInfo start: start end: stop source: method sourceCode
+	^ self lineInfo
 ]
 
 { #category : #private }
