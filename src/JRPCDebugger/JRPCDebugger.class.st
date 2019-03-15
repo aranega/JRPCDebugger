@@ -2,8 +2,6 @@ Class {
 	#name : #JRPCDebugger,
 	#superclass : #Object,
 	#instVars : [
-		'debugContext',
-		'debugSession',
 		'process',
 		'session',
 		'jrpcServer'
@@ -19,8 +17,13 @@ JRPCDebugger >> addEchoHandler [
 ]
 
 { #category : #actions }
+JRPCDebugger >> context [
+	^ self session context
+]
+
+{ #category : #actions }
 JRPCDebugger >> currentMethodNode [
-	^ session context method ast
+	^ self context method ast
 ]
 
 { #category : #actions }
@@ -31,71 +34,65 @@ JRPCDebugger >> currentMethodSource [
 { #category : #actions }
 JRPCDebugger >> currentNode [
 	| pc |
-	pc := session context pc.
+	pc := self context pc.
 	^ self currentMethodNode sourceNodeExecutedForPC: pc.
 ]
 
 { #category : #actions }
 JRPCDebugger >> debug: processHash [
-	| method pc start stop |
 	process := self processWithHash: processHash.
 	session := process
 		newDebugSessionNamed: 'test session'
 		startedAt: process suspendedContext.
-	method := session context method.
-	pc := session context pc.
-	start := (method ast sourceNodeExecutedForPC: pc) start.
-	stop := (method ast sourceNodeExecutedForPC: pc) stop.
-	^ JRPCDLineInfo start: start end: stop source: method sourceCode
+	^ self lineInfo 
 ]
 
-{ #category : #accessing }
-JRPCDebugger >> debugContext [
-	^ debugContext
-]
-
-{ #category : #accessing }
-JRPCDebugger >> debugContext: anObject [
-	debugContext := anObject
-]
-
-{ #category : #accessing }
-JRPCDebugger >> debugSession [
-	^ debugSession
-]
-
-{ #category : #accessing }
-JRPCDebugger >> debugSession: anObject [
-	debugSession := anObject
+{ #category : #actions }
+JRPCDebugger >> debugAST: aString [
 ]
 
 { #category : #actions }
 JRPCDebugger >> display [
-	| method pc start stop |
-	method := session context method.
-	pc := session context pc.
-	start := (method ast sourceNodeExecutedForPC: pc) start.
-	stop := (method ast sourceNodeExecutedForPC: pc) stop.
+	| method start stop |
+	method := self currentMethodNode.	
+	start := self currentNode start.
+	stop := self currentNode stop.
 	^ JRPCDLineInfo start: start end: stop source: method sourceCode
 ]
 
 { #category : #actions }
 JRPCDebugger >> evaluate: aString [
-	^ JRPCDEvalInfo result: (Smalltalk compiler source: aString; context: session context; receiver: session context receiver; evaluate).
+	^ JRPCDEvalInfo result: (Smalltalk compiler source: aString; context: self context; receiver: self context receiver; evaluate).
 ]
 
 { #category : #actions }
-JRPCDebugger >> init [
-	| context |
-	context := [ | x |
-	x := 5 + 1.
-	'lalala' logCr ] asContext.
-	process := Process 
-	    forContext: context 
-	    priority: Processor userInterruptPriority.
-	session := process newDebugSessionNamed: 'test session' startedAt: context.
-	
+JRPCDebugger >> finish [
+   |lastStatement currentNode|
+	lastStatement := self currentMethodNode statements last.
+	currentNode := self currentNode.
+	[ (self context isNotNil or: [currentNode isKindOf: RBReturnNode]) or: [ currentNode = lastStatement ] ] whileFalse: [ self session stepOver. currentNode := self currentNode. ].
 	^ self lineInfo 
+]
+
+{ #category : #actions }
+JRPCDebugger >> init: aString [
+	| context code |
+	code := aString isEmpty
+		ifTrue: [ [ | x |
+			x := 5 + 1.
+			'lalala' logCr ]]
+		ifFalse: [ (Smalltalk compiler
+				source: '[', aString, ']' ;
+				evaluate) ].
+	
+	context := code asContext.
+	process := Process
+		forContext: context
+		priority: Processor userInterruptPriority.
+	session := process
+		newDebugSessionNamed: 'test session'
+		startedAt: context.
+	^ self lineInfo
 ]
 
 { #category : #initialization }
@@ -103,13 +100,14 @@ JRPCDebugger >> initialize [
 	super initialize.
 	jrpcServer := JRPCServer http
 						port: 4000;
-						addHandlerNamed: 'initialize' block: [ self init ];
+						addHandlerNamed: 'initialize' block: [ :code | self init: code ];
 						addHandlerNamed: 'display' block: [ self display ];
 						addHandlerNamed: 'resume' block: [ self resume ];
 						addHandlerNamed: 'evaluate' block: [ :expression | self evaluate: expression ];
 						addHandlerNamed: 'nextStatement' block: [ self nextStatement ];
 						addHandlerNamed: 'next' block: [ self next ];
 						addHandlerNamed: 'step' block: [ self step ];
+						addHandlerNamed: 'finish' block: [ self finish ];
 						addHandlerNamed: 'list' block: [ self listProcesses ];
 						addHandlerNamed: 'debug' block: [ :processHash | self debug: processHash ];
 						yourself
@@ -117,11 +115,11 @@ JRPCDebugger >> initialize [
 
 { #category : #actions }
 JRPCDebugger >> lineInfo [
-	| range |
-	range := session pcRangeForContext: session context.
+	| node |
+	node := self currentNode.
 	^ JRPCDLineInfo
-		start: range first
-		end: range last
+		start: node start
+		end: node stop
 		source: self currentMethodSource
 ]
 
@@ -171,6 +169,11 @@ JRPCDebugger >> resume [
 { #category : #actions }
 JRPCDebugger >> session [
 	^ session
+]
+
+{ #category : #actions }
+JRPCDebugger >> session: aDebugSession [
+	session := aDebugSession
 ]
 
 { #category : #accessing }
