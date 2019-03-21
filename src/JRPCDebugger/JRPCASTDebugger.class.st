@@ -6,7 +6,7 @@ Class {
 
 { #category : #actions }
 JRPCASTDebugger >> context [
-	^ self session currentContext
+	^ self session currentContext contextTag  
 ]
 
 { #category : #actions }
