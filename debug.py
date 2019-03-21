@@ -13,6 +13,13 @@ class bcolors(object):
     UNDERLINE = "\033[4m"
 
 
+def record_history(func):
+    def wrapper(self, args):
+        func(self, args)
+        self.history.append(f"{func.__name__.replace('do_', '')} {args}")
+    return wrapper
+
+
 class JRPC(object):
     def __init__(self, url="http://localhost:4000", session=requests):
         self.url = url
@@ -51,6 +58,7 @@ class RemoteDebuggerControl(Cmd):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.jrpc = JRPC()
+        self.history = []
         print(
             f"Welcome to Pharo remote command line debugger (session on {self.jrpc.url})"
         )
@@ -98,6 +106,7 @@ class RemoteDebuggerControl(Cmd):
         except Exception as e:
             print("Unable to perform echo", e)
 
+    @record_history
     def do_init(self, inp):
         try:
             json_response = self.jrpc.initialize(inp)
@@ -124,6 +133,7 @@ class RemoteDebuggerControl(Cmd):
         )
         print(">>>", new_source)
 
+    @record_history
     def do_step(self, inp):
         try:
             json_response = self.jrpc.step()
@@ -135,6 +145,7 @@ class RemoteDebuggerControl(Cmd):
 
     do_s = do_step
 
+    @record_history
     def do_next(self, inp):
         try:
             json_response = self.jrpc.next()
@@ -146,6 +157,7 @@ class RemoteDebuggerControl(Cmd):
 
     do_n = do_next
 
+    @record_history
     def do_next_stmt(self, inp):
         try:
             json_response = self.jrpc.nextStatement()
@@ -196,6 +208,35 @@ class RemoteDebuggerControl(Cmd):
             print(json_response)
 
     do_c = do_continue
+
+    def do_history(self, arg):
+        if arg == '':
+            print('\n'.join(self.history))
+        elif arg.startswith('save'):
+            fname =  arg.split()[-1]
+            with open(fname, 'w') as f:
+                f.write('\n'.join(self.history))
+                f.close()
+        elif arg.startswith('load'):
+            fname =  arg.split()[-1]
+            with open(fname, 'r') as f:
+                fl = f.readlines()
+                for line in fl:
+                    self.history.append(line)
+                f.close()
+        elif arg == 'clean':
+            self.history.clear()
+
+
+    def do_currentcontext(self, arg):
+        try:
+            json_response = self.jrpc.currentcontext()
+            print(json_response["result"])
+        except KeyError as e:
+            print(json_response)
+        except Exception as e:
+            print("Unable to ask for current context", e)
+            print(json_response)
 
     def default(self, inp):
         self.do_eval(inp)
