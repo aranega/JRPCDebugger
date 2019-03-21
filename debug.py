@@ -93,15 +93,20 @@ class RemoteDebuggerControl(Cmd):
         try:
             json_response = self.jrpc.echo(arg)
             print(json_response["result"])
+        except KeyError as e:
+            print(json_response)
         except Exception as e:
             print("Unable to perform echo", e)
 
     def do_init(self, inp):
         try:
-            json_response = self.jrpc.initialize()
+            json_response = self.jrpc.initialize(inp)
             self.display_line(json_response["result"])
+        except KeyError as e:
+            print(json_response)
         except Exception as e:
             print("Unable to perform the init", e)
+            print(json_response)
 
     @staticmethod
     def display_line(line_info):
@@ -123,6 +128,8 @@ class RemoteDebuggerControl(Cmd):
         try:
             json_response = self.jrpc.step()
             self.display_line(json_response["result"])
+        except KeyError as e:
+            print(json_response)
         except Exception as e:
             print("Unable to perform the step", e)
 
@@ -132,6 +139,8 @@ class RemoteDebuggerControl(Cmd):
         try:
             json_response = self.jrpc.next()
             self.display_line(json_response["result"])
+        except KeyError as e:
+            print(json_response)
         except Exception as e:
             print("Unable to perform the next", e)
 
@@ -141,6 +150,8 @@ class RemoteDebuggerControl(Cmd):
         try:
             json_response = self.jrpc.nextStatement()
             self.display_line(json_response["result"])
+        except KeyError as e:
+            print(json_response)
         except Exception as e:
             print("Unable to perform the next stmt", e)
 
@@ -148,6 +159,8 @@ class RemoteDebuggerControl(Cmd):
         try:
             json_response = self.jrpc.display()
             self.display_line(json_response["result"])
+        except KeyError as e:
+            print(json_response)
         except Exception as e:
             print("Unable to perform the display", e)
             print(json_response)
@@ -158,6 +171,8 @@ class RemoteDebuggerControl(Cmd):
             processes = json_response["result"]["processes"]
             for process in processes:
                 print(f"""[{process['hash']}] {process['string']}""")
+        except KeyError as e:
+            print(json_response)
         except Exception as e:
             print("Unable to perform the list", e)
 
@@ -165,6 +180,8 @@ class RemoteDebuggerControl(Cmd):
         try:
             json_response = self.jrpc.debug(processHash=int(arg))
             self.display_line(json_response["result"])
+        except KeyError as e:
+            print(json_response)
         except Exception as e:
             print("Unable to init the debug session", e)
 
@@ -172,6 +189,8 @@ class RemoteDebuggerControl(Cmd):
         try:
             json_response = self.jrpc.resume()
             self.display_line(json_response["result"])
+        except KeyError as e:
+            print(json_response)
         except Exception as e:
             print("Unable to continue execution", e)
             print(json_response)
