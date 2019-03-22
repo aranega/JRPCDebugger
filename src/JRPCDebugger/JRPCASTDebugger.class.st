@@ -36,10 +36,22 @@ JRPCASTDebugger >> init: aString [
 JRPCASTDebugger >> initialize [
 	super initialize.
 	jrpcServer addHandlerNamed: 'currentcontext' block: [ self displayCurrentContext ].
+	jrpcServer addHandlerNamed: 'where' block: [ self where ].
 						
 ]
 
 { #category : #actions }
 JRPCASTDebugger >> resume [
 	^ JRPCDEvalInfo result: process evaluate.
+]
+
+{ #category : #actions }
+JRPCASTDebugger >> where [
+	| stack context |
+	stack := OrderedCollection new.
+	context := self session currentContext.
+	[ context isNil ]
+		whileFalse: [ stack add: context asString.
+			context := context sender ].
+	^ stack asArray
 ]
