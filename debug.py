@@ -232,6 +232,17 @@ class RemoteDebuggerControl(Cmd):
             print("Unable to ask for current context", e)
             print(json_response)
 
+    def do_where(self, arg):
+        try:
+            json_response = self.jrpc.where()
+            for context in json_response["result"]:
+                print(context)
+        except KeyError as e:
+            print(json_response)
+        except Exception as e:
+            print("Unable to ask for context list", e)
+            print(json_response)
+
     def default(self, inp):
         self.do_eval(inp)
 
