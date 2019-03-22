@@ -59,9 +59,7 @@ class RemoteDebuggerControl(Cmd):
         super().__init__(*args, **kwargs)
         self.jrpc = JRPC()
         self.history = []
-        print(
-            f"Welcome to Pharo remote command line debugger (session on {self.jrpc.url})"
-        )
+        self.intro = f"Welcome to Pharo remote command line debugger (session on {self.jrpc.url})"
 
     def do_exit(self, inp):
         """Exit the remote debugger control"""
@@ -216,14 +214,10 @@ class RemoteDebuggerControl(Cmd):
             fname =  arg.split()[-1]
             with open(fname, 'w') as f:
                 f.write('\n'.join(self.history))
-                f.close()
         elif arg.startswith('load'):
             fname =  arg.split()[-1]
             with open(fname, 'r') as f:
-                fl = f.readlines()
-                for line in fl:
-                    self.history.append(line)
-                f.close()
+                self.cmdqueue.extend(f.read().splitlines())
         elif arg == 'clean':
             self.history.clear()
 
