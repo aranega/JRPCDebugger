@@ -37,12 +37,22 @@ JRPCASTDebugger >> initialize [
 	super initialize.
 	jrpcServer addHandlerNamed: 'currentcontext' block: [ self displayCurrentContext ].
 	jrpcServer addHandlerNamed: 'where' block: [ self where ].
+	jrpcServer addHandlerNamed: 'stepThrough' block: [ self stepThrough ].
 						
 ]
 
 { #category : #actions }
 JRPCASTDebugger >> resume [
 	^ JRPCDEvalInfo result: process evaluate.
+]
+
+{ #category : #actions }
+JRPCASTDebugger >> stepThrough [
+	| context |
+	context := self context. 
+	self step.
+	[ (self context isBlockContext and: [ self context parent = context ]) or: [ self context = context ] ] whileFalse: [ self step ].
+	^ self lineInfo 
 ]
 
 { #category : #actions }
